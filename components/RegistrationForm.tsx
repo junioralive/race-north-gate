@@ -20,10 +20,6 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSubmit }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!consent) {
-      alert("Please agree to receive information to proceed.");
-      return;
-    }
     setLoading(true);
     // Reduced simulated delay for better UX
     setTimeout(() => {

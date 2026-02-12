@@ -114,17 +114,25 @@ const App: React.FC = () => {
             <div className="bg-white p-10 rounded-[3rem] shadow-2xl max-w-lg w-full text-center border-t-[12px] border-race-orange">
               <div className="text-7xl mb-6">🏆</div>
               <h2 className="text-4xl font-black mb-2 text-gray-900">It's a Win!</h2>
-              <p className="text-xl text-gray-600 mb-8">You've secured a <span className="font-bold text-orange-600 underline decoration-2 underline-offset-4">{user.reward}</span> discount!</p>
+              {(/\bhamper(s)?\b|\bgoodies\b|\bgifts?\b/i.test(user.reward || '')) ? (
+                <p className="text-xl text-gray-600 mb-8">
+                  You've won <span className="font-bold text-orange-600 underline decoration-2 underline-offset-4">{user.reward}</span>!
+                </p>
+              ) : (
+                <p className="text-xl text-gray-600 mb-8">You've secured a <span className="font-bold text-orange-600 underline decoration-2 underline-offset-4">{user.reward}</span> discount!</p>
+              )}
               
-              <div className="bg-gray-50 p-8 rounded-3xl border-2 border-dashed border-gray-200 mb-10">
-                <p className="text-xs text-gray-400 uppercase tracking-widest mb-2 font-black">Your Exclusive Coupon</p>
-                <p className="text-3xl font-mono font-bold text-gray-800 tracking-widest">{user.coupon}</p>
-              </div>
+              {user.coupon ? (
+                <div className="bg-gray-50 p-8 rounded-3xl border-2 border-dashed border-gray-200 mb-10">
+                  <p className="text-xs text-gray-400 uppercase tracking-widest mb-2 font-black">Your Exclusive Coupon</p>
+                  <p className="text-3xl font-mono font-bold text-gray-800 tracking-widest">{user.coupon}</p>
+                </div>
+              ) : null}
 
               <div className="space-y-4">
                 <button 
                   onClick={() => {
-                    navigator.clipboard.writeText(user.coupon || '');
+                    if (user.coupon) navigator.clipboard.writeText(user.coupon);
                     alert("Thank you for participating!");
                   }}
                   className="w-full bg-race-orange text-white font-bold py-5 rounded-2xl hover:bg-orange-600 transition shadow-xl active:scale-95 text-lg"

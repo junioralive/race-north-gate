@@ -26,6 +26,71 @@ const SpinWheel: React.FC<SpinWheelProps> = ({ onComplete, userEmail }) => {
     return segments[0];
   };
 
+  const ellipsizeText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number) => {
+    const ellipsis = '…';
+    if (ctx.measureText(text).width <= maxWidth) return text;
+    if (ctx.measureText(ellipsis).width > maxWidth) return '';
+
+    let trimmed = text;
+    while (trimmed.length > 0 && ctx.measureText(trimmed + ellipsis).width > maxWidth) {
+      trimmed = trimmed.slice(0, -1);
+    }
+    return trimmed.length ? trimmed + ellipsis : '';
+  };
+
+  const wrapTextLines = (
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    maxWidth: number,
+    maxLines: number
+  ) => {
+    const cleaned = (text || '').trim().replace(/\s+/g, ' ');
+    if (!cleaned) return [''];
+
+    const words = cleaned.split(' ');
+    const lines: string[] = [];
+    let current = '';
+
+    const pushCurrent = () => {
+      if (current) lines.push(current);
+      current = '';
+    };
+
+    for (const word of words) {
+      const candidate = current ? `${current} ${word}` : word;
+      if (ctx.measureText(candidate).width <= maxWidth) {
+        current = candidate;
+        continue;
+      }
+
+      if (current) pushCurrent();
+
+      // If a single "word" is too long, ellipsize it to fit.
+      if (ctx.measureText(word).width > maxWidth) {
+        lines.push(ellipsizeText(ctx, word, maxWidth));
+      } else {
+        current = word;
+      }
+
+      if (lines.length >= maxLines) break;
+    }
+
+    if (lines.length < maxLines && current) pushCurrent();
+
+    // If we exceeded line limit, merge and ellipsize last line.
+    if (lines.length > maxLines) lines.length = maxLines;
+    if (lines.length === maxLines) {
+      const usedWords = lines.join(' ').split(' ').length;
+      const remainingWords = words.slice(usedWords);
+      if (remainingWords.length) {
+        const last = `${lines[maxLines - 1]} ${remainingWords.join(' ')}`;
+        lines[maxLines - 1] = ellipsizeText(ctx, last, maxWidth);
+      }
+    }
+
+    return lines;
+  };
+
   const drawWheel = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -56,9 +121,30 @@ const SpinWheel: React.FC<SpinWheelProps> = ({ onComplete, userEmail }) => {
       ctx.translate(centerX, centerY);
       ctx.rotate(angleStart + anglePerSegment / 2);
       ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
       ctx.fillStyle = '#fff';
-      ctx.font = 'bold 16px Inter';
-      ctx.fillText(seg.label, radius - 20, 5);
+
+      const outerTextX = radius - 20;
+      const innerClearRadius = 30;
+      const innerPadding = 22;
+      const maxTextWidth = Math.max(40, outerTextX - (innerClearRadius + innerPadding));
+
+      let fontSize = 16;
+      let lines: string[] = [];
+      while (fontSize >= 11) {
+        ctx.font = `bold ${fontSize}px Inter`;
+        lines = wrapTextLines(ctx, seg.label, maxTextWidth, 2);
+        const fits = lines.every(line => ctx.measureText(line).width <= maxTextWidth);
+        if (fits) break;
+        fontSize -= 1;
+      }
+
+      const lineHeight = fontSize + 3;
+      const yCenter = 5;
+      const startY = yCenter - ((lines.length - 1) * lineHeight) / 2;
+      lines.forEach((line, idx) => {
+        ctx.fillText(line, outerTextX, startY + idx * lineHeight);
+      });
       ctx.restore();
     });
 
@@ -89,14 +175,21 @@ const SpinWheel: React.FC<SpinWheelProps> = ({ onComplete, userEmail }) => {
     if (!canvas) return;
 
     const targetReward = getRandomReward();
-    const targetIdx = segments.indexOf(targetReward);
+    const targetIdx = segments.findIndex(s => s.label === targetReward.label);
     
     setIsSpinning(true);
     setShowConfetti(false);
 
     const spins = 6 + Math.floor(Math.random() * 4);
     const anglePerSegment = 360 / totalSegments;
-    const targetAngle = (spins * 360) + (360 - (targetIdx * anglePerSegment + anglePerSegment / 2));
+    const segmentCenterAngle = (Math.max(0, targetIdx) * anglePerSegment) + anglePerSegment / 2;
+    // Pointer is visually at the top of the wheel.
+    // Wheel is drawn with 0° at the right (canvas default) and increases clockwise.
+    // So to land the chosen segment under the top pointer (270°), rotate by:
+    // rotation = 270° - segmentCenterAngle (mod 360)
+    const pointerAngle = 270;
+    const baseRotation = (pointerAngle - segmentCenterAngle + 360) % 360;
+    const targetAngle = (spins * 360) + baseRotation;
     
     let currentAngle = 0;
     const startTime = performance.now();
@@ -116,7 +209,10 @@ const SpinWheel: React.FC<SpinWheelProps> = ({ onComplete, userEmail }) => {
       } else {
         setIsSpinning(false);
         setShowConfetti(true);
-        const code = `${CAMPAIGN.couponPrefix}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+        const isGoodiesReward = /\bhamper(s)?\b|\bgoodies\b|\bgifts?\b/i.test(targetReward.label);
+        const code = isGoodiesReward
+          ? ''
+          : `${CAMPAIGN.couponPrefix}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
         
         // Removed the 300ms delay - call onComplete immediately
         onComplete(targetReward.label, code);
@@ -134,7 +230,24 @@ const SpinWheel: React.FC<SpinWheelProps> = ({ onComplete, userEmail }) => {
         <div className="w-8 h-8 bg-gray-900 rotate-45 border-4 border-white shadow-lg"></div>
       </div>
 
-      <div className="bg-white p-4 rounded-full shadow-2xl relative">
+      <div
+        className={`bg-white p-4 rounded-full shadow-2xl relative select-none ${
+          isSpinning ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'
+        }`}
+        role="button"
+        tabIndex={0}
+        aria-disabled={isSpinning}
+        onClick={() => {
+          if (!isSpinning) spin();
+        }}
+        onKeyDown={(e) => {
+          if (isSpinning) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            spin();
+          }
+        }}
+      >
         <canvas 
           ref={canvasRef} 
           width={400} 
@@ -142,14 +255,6 @@ const SpinWheel: React.FC<SpinWheelProps> = ({ onComplete, userEmail }) => {
           className="rounded-full w-[320px] h-[320px] md:w-[400px] md:h-[400px] shadow-inner transition-transform"
         ></canvas>
       </div>
-
-      <button 
-        onClick={spin}
-        disabled={isSpinning}
-        className="mt-12 bg-gray-900 text-white px-16 py-4 rounded-full font-black text-xl hover:bg-black transition shadow-2xl active:scale-95 disabled:opacity-50"
-      >
-        {isSpinning ? "Spinning..." : "SPIN NOW!"}
-      </button>
       
       <p className="mt-6 text-gray-500 text-xs italic">
         * Rewards are subject to verification. One spin per participant.
