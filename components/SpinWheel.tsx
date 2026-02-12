@@ -207,15 +207,19 @@ const SpinWheel: React.FC<SpinWheelProps> = ({ onComplete, userEmail }) => {
       if (t < 1) {
         requestAnimationFrame(animate);
       } else {
+        // Ensure the final transform is applied before leaving this screen.
+        canvas.style.transform = `rotate(${targetAngle}deg)`;
         setIsSpinning(false);
         setShowConfetti(true);
         const isGoodiesReward = /\bhamper(s)?\b|\bgoodies\b|\bgifts?\b/i.test(targetReward.label);
         const code = isGoodiesReward
           ? ''
           : `${CAMPAIGN.couponPrefix}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-        
-        // Removed the 300ms delay - call onComplete immediately
-        onComplete(targetReward.label, code);
+
+        // Small delay so users clearly see where the wheel stops.
+        setTimeout(() => {
+          onComplete(targetReward.label, code);
+        }, 450);
       }
     };
 
@@ -252,7 +256,7 @@ const SpinWheel: React.FC<SpinWheelProps> = ({ onComplete, userEmail }) => {
           ref={canvasRef} 
           width={400} 
           height={400} 
-          className="rounded-full w-[320px] h-[320px] md:w-[400px] md:h-[400px] shadow-inner transition-transform"
+          className="rounded-full w-[320px] h-[320px] md:w-[400px] md:h-[400px] shadow-inner will-change-transform"
         ></canvas>
       </div>
       
