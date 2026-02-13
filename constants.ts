@@ -6,14 +6,11 @@ export const CAMPAIGN: CampaignConfig = {
   adminPassword: "raceadmin2025",
   googleSheetUrl: "https://script.google.com/macros/s/AKfycbwwpucQnUTb95adHl6TzOJRR8ygbiTr3imS0_vdXLVyz6b460n5Gg2eJIrHtMciTG4AdQ/exec", 
   segments: [
-    { label: "10% OFF", value: 10, weight: 40, color: "#f97316" },
-    { label: "Free workshop", value: 20, weight: 25, color: "#ea580c" },
-    { label: "15% on certification courses", value: 30, weight: 15, color: "#c2410c" },
+    { label: "₹10,000 OFF", value: 10, weight: 40, color: "#f97316" },
+    { label: "₹5000 OFF", value: 20, weight: 25, color: "#ea580c" },
+    { label: "Free Access to Workshops", value: 30, weight: 15, color: "#c2410c" },
     { label: "1-on-1 with C-Suite Leaders", value: 40, weight: 8, color: "#9a3412" },
     { label: "Hampers", value: 50, weight: 22, color: "#7c2d12" },
-    // { label: "75% OFF", value: 75, weight: 4, color: "#f97316" },
-    // { label: "100% OFF", value: 100, weight: 2, color: "#fbbf24" },
-    // { label: "TRY AGAIN (10%)", value: 10, weight: 0, color: "#64748b" },
   ]
 };
 
